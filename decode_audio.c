@@ -50,58 +50,58 @@ void decode_audio(const char *input_file, const char *output_file)
 	FILE *fp_out;
 	AVFormatContext *fmt_ctx = NULL;
 
-	if ((codec = avcodec_find_decoder(AV_CODEC_ID_MP3)) == NULL)
-	{
-		fprintf(stderr, "avcodec_find_decoder failed.\n");
-		goto ret1;
-	}
-
-	if ((cdc_ctx = avcodec_alloc_context3(codec)) == NULL)
-	{
-		fprintf(stderr, "avcodec_alloc_context3 failed.\n");
-		goto ret1;
-	}
-
-	if ((ret = avcodec_open2(cdc_ctx, codec, NULL)) < 0)
-	{
-		fprintf(stderr, "avcodec_open2 failed.\n");
-		goto ret2;
-	}
-
-	if ((pkt = av_packet_alloc()) == NULL)
-	{
-		fprintf(stderr, "av_packet_alloc failed.\n");
-		goto ret3;
-	}
-
-	if ((frame = av_frame_alloc()) == NULL)
-	{
-		fprintf(stderr, "av_frame_alloc failed.\n");
-		goto ret4;
-	}
-
-	if ((fp_out = fopen(output_file, "wb")) == NULL)
-	{
-		fprintf(stderr, "fopen %s failed.\n", output_file);
-		goto ret5;
-	}
-
-	if ((fmt_ctx = avformat_alloc_context()) == NULL)
-	{
-		fprintf(stderr, "avformat_alloc_context failed.\n");
-		goto ret7;
-	}
-
 	if ((ret = avformat_open_input(&fmt_ctx, input_file, NULL, NULL)) < 0)
 	{
 		fprintf(stderr, "avformat_open_input failed.\n");
-		goto ret8;
+		goto ret1;
 	}
 
 	if ((ret = avformat_find_stream_info(fmt_ctx, NULL)) < 0)
 	{
 		fprintf(stderr, "avformat_find_stream_info failed.\n");
-		goto ret9;
+		goto ret2;
+	}
+
+	if ((ret = av_find_best_stream(fmt_ctx, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0)) < 0)
+	{
+		fprintf(stderr, "av_find_best_stream failed.\n");
+		goto ret2;
+	}
+
+	if ((codec = avcodec_find_decoder(fmt_ctx->streams[ret]->codecpar->codec_id)) == NULL)
+	{
+		fprintf(stderr, "avcodec_find_decoder failed.\n");
+		goto ret2;
+	}
+
+	if ((cdc_ctx = avcodec_alloc_context3(codec)) == NULL)
+	{
+		fprintf(stderr, "avcodec_alloc_context3 failed.\n");
+		goto ret2;
+	}
+
+	if ((ret = avcodec_open2(cdc_ctx, codec, NULL)) < 0)
+	{
+		fprintf(stderr, "avcodec_open2 failed.\n");
+		goto ret3;
+	}
+
+	if ((pkt = av_packet_alloc()) == NULL)
+	{
+		fprintf(stderr, "av_packet_alloc failed.\n");
+		goto ret4;
+	}
+
+	if ((frame = av_frame_alloc()) == NULL)
+	{
+		fprintf(stderr, "av_frame_alloc failed.\n");
+		goto ret5;
+	}
+
+	if ((fp_out = fopen(output_file, "wb")) == NULL)
+	{
+		fprintf(stderr, "fopen %s failed.\n", output_file);
+		goto ret6;
 	}
 
 	while ((ret = av_read_frame(fmt_ctx, pkt)) == 0)
@@ -113,28 +113,23 @@ void decode_audio(const char *input_file, const char *output_file)
 	decode(cdc_ctx, frame, NULL, fp_out);
 
 
-	avformat_close_input(&fmt_ctx);
-	avformat_free_context(fmt_ctx);
 	fclose(fp_out);
 	av_frame_free(&frame);
 	av_packet_free(&pkt);
 	avcodec_close(cdc_ctx);
 	avcodec_free_context(&cdc_ctx);
+	avformat_close_input(&fmt_ctx);
 	return;
-ret9:
-	avformat_close_input(&fmt_ctx);
-ret8:
-	avformat_free_context(fmt_ctx);
-ret7:
-	fclose(fp_out);
-ret5:
+ret6:
 	av_frame_free(&frame);
-ret4:
+ret5:
 	av_packet_free(&pkt);
-ret3:
+ret4:
 	avcodec_close(cdc_ctx);
-ret2:
+ret3:
 	avcodec_free_context(&cdc_ctx);
+ret2:
+	avformat_close_input(&fmt_ctx);
 ret1:
 	exit(1);
 }
